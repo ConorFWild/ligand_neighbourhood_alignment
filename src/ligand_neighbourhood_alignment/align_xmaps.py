@@ -392,6 +392,9 @@ def _get_box(neighbourhood: dt.Neighbourhood, xmap, transform):
         )
     return box
 
+def _write_xmap_from_ccp4(ccp4, path):
+    ccp4.write_ccp4_map(str(path))
+
 def _write_xmap(xmap, path: Path, neighbourhood: dt.Neighbourhood, transform):
 
     ccp4 = gemmi.Ccp4Map()
@@ -399,20 +402,128 @@ def _write_xmap(xmap, path: Path, neighbourhood: dt.Neighbourhood, transform):
     ccp4.setup(float("nan"))
     ccp4.update_ccp4_header()
 
-    box = _get_box(neighbourhood, xmap, transform)
-    box_min = box.minimum
-    box_max = box.maximum
-    box_min_str = f"{round(box_min.x, 2)} {round(box_min.y, 2)} {round(box_min.z, 2)}"
-    box_max_str = f"{round(box_max.x, 2)} {round(box_max.y, 2)} {round(box_max.z, 2)}"
-    # logger.debug(f"Box Extent is: min {box_min_str} : max {box_max_str}")
-    print(f"Box Extent is: min {box_min_str} : max {box_max_str}")
+    if transform:
+        box = _get_box(neighbourhood, xmap, transform)
+        box_min = box.minimum
+        box_max = box.maximum
+        box_min_str = f"{round(box_min.x, 2)} {round(box_min.y, 2)} {round(box_min.z, 2)}"
+        box_max_str = f"{round(box_max.x, 2)} {round(box_max.y, 2)} {round(box_max.z, 2)}"
+        # logger.debug(f"Box Extent is: min {box_min_str} : max {box_max_str}")
+        print(f"Box Extent is: min {box_min_str} : max {box_max_str}")
 
-    ccp4.set_extent(box)
+        ccp4.set_extent(box)
+
     ccp4.setup(float("nan"))
     ccp4.update_ccp4_header()
 
 
     ccp4.write_ccp4_map(str(path))
+
+
+def get_ligand_bounds(lig, border):
+    poss = []
+    for atom in lig:
+        pos = atom.pos
+        poss.append([pos.x, pos.y, pos.z])
+    pos_array = np.array(poss)
+    min_pos = np.min(pos_array, axis=0)
+    max_pos = np.max(pos_array, axis=0)
+    return min_pos, max_pos
+
+
+def get_frame_bounds(ligand_lower_bound, ligand_upper_bound, border, step):
+    min_border = ligand_lower_bound - border
+    max_border = min_border + (np.ceil(((ligand_upper_bound + 5) - min_border) / step) * step)
+    return min_border, max_border
+
+    ...
+
+
+def get_frame_array(frame_lower_bound, frame_upper_bound, step):
+    interval = np.round((frame_upper_bound - frame_lower_bound) / step)
+    return np.zeros(
+        (int(interval[0]), int(interval[1]), int(interval[2])),
+        dtype=np.float32
+    )
+    ...
+
+
+def get_frame_transform(frame_lower_bound, frame_array, step):
+    tr = gemmi.Transform()
+    tr.vec.fromlist([x for x in frame_lower_bound])
+    tr.mat.fromlist(
+        (np.eye(3) * step).tolist()
+    )
+    return tr
+
+    ...
+
+
+def get_cell(frame_array, step):
+    shape = frame_array.shape
+    cell = gemmi.UnitCell(
+        shape[0] * step,
+        shape[1] * step,
+        shape[2] * step,
+        90.0,
+        90.0,
+        90.0
+    )
+    return cell
+
+
+def get_new_map(cell, sample, frame_min, step):
+    shape = sample.shape
+    grid = gemmi.FloatGrid(shape[0], shape[1], shape[2])
+    grid_array = np.array(grid, copy=False)
+    grid_array[:, :, :] = sample[:, :, :]
+    ccp4 = gemmi.Ccp4Map()
+    ccp4.grid = grid
+    ccp4.grid.set_unit_cell(cell)
+    ccp4.grid.spacegroup = gemmi.SpaceGroup('P1')
+    ccp4.update_ccp4_header()
+    #     ccp4.set_header_float(50, frame_min[0]/step)
+    #     ccp4.set_header_float(51, frame_min[1]/step)
+    #     ccp4.set_header_float(52, frame_min[2]/step)
+    ccp4.set_header_float(50, frame_min[0])
+    ccp4.set_header_float(51, frame_min[1])
+    ccp4.set_header_float(52, frame_min[2])
+    return ccp4
+
+def resample_xmap(
+        new_xmap,
+        aligned_res
+    ):
+    step = 0.5
+    border = 5.0
+    m = new_xmap
+    # st = gemmi.read_structure('XX01ZVNS2B-x0051_B_301_XX01ZVNS2B-x0429+B+203.pdb')
+    lig = aligned_res
+
+    ligand_lower_bound, ligand_upper_bound = get_ligand_bounds(lig, border)
+    # print(ligand_lower_bound)
+    # print(ligand_upper_bound)
+
+    frame_lower_bound, frame_upper_bound = get_frame_bounds(ligand_lower_bound, ligand_upper_bound, border, step)
+    # print(frame_lower_bound)
+    # print(frame_upper_bound)
+    # print(frame_upper_bound - frame_lower_bound)
+
+    frame_array = get_frame_array(frame_lower_bound, frame_upper_bound, step)
+    # print(frame_array.shape)
+
+    frame_transform = get_frame_transform(frame_lower_bound, frame_array, step)
+    # print(frame_transform.vec.tolist())
+    # print(frame_transform.mat.tolist())
+
+    m.interpolate_values(frame_array, frame_transform)
+    # print(frame_array.shape)
+
+    cell = get_cell(frame_array, step)
+    # print(cell)
+
+    new_map = get_new_map(cell, frame_array, frame_lower_bound, step)
+    return new_map
 
 def __align_xmap(
         neighbourhood: dt.Neighbourhood,
@@ -427,6 +538,7 @@ def __align_xmap(
         # canonical_site_transforms,
         canonical_site_id,
         output_path: Path,
+    aligned_res
 ):
     # Get the ligand neighbourhood
     # neighbourhood: LigandNeighbourhood = neighbourhoods.get_neighbourhood(lid)
@@ -477,12 +589,24 @@ def __align_xmap(
         running_transform.inverse(),
     )
 
-    # Output the xmap
-    _write_xmap(
+    # Resample the xmap to the aligned structure frame
+    resampled_xmap = resample_xmap(
         new_xmap,
+        aligned_res
+    )
+
+    # Output the xmap
+    # _write_xmap(
+    #     new_xmap,
+    #     output_path,
+    #     neighbourhood,
+    #     running_transform,
+    # )
+
+    _write_xmap_from_ccp4(
+        resampled_xmap,
         output_path,
-        neighbourhood,
-        running_transform,
+
     )
 
 

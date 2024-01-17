@@ -2,10 +2,13 @@ import json
 import os
 import re
 from pathlib import Path
+import sys
 
 import pandas as pd
 import yaml
 from loguru import logger
+logger.remove() # for someone not familiar with the lib, whats going on here?
+logger.add(sys.stdout, level="INFO")
 
 from ligand_neighbourhood_alignment import constants
 from ligand_neighbourhood_alignment.make_data_json import (
@@ -56,7 +59,7 @@ class FSModel:
             self,
             source_dir,
             fs_model,
-            assemblies,
+            # assemblies,
             xtalforms,
             dataset_assignments,
             ligand_neighbourhoods,
@@ -73,7 +76,7 @@ class FSModel:
     ):
         self.source_dir = source_dir
         self.fs_model = fs_model
-        self.assemblies = assemblies
+        # self.assemblies = assemblies
         self.xtalforms = xtalforms
         self.dataset_assignments = dataset_assignments
         self.ligand_neighbourhoods = ligand_neighbourhoods
@@ -152,7 +155,7 @@ class FSModel:
             if dic is not None:
                 return FSModel.from_dict(dic)
 
-        assemblies = source_dir / constants.ASSEMBLIES_YAML_FILE_NAME
+        # assemblies = source_dir / constants.ASSEMBLIES_YAML_FILE_NAME
         xtalforms = source_dir / constants.XTALFORMS_YAML_FILE_NAME
         dataset_assignments = source_dir / constants.ASSIGNED_XTALFORMS_YAML_FILE_NAME
         ligand_neighbourhoods = source_dir / constants.NEIGHBOURHOODS_YAML_FILE_NAME
@@ -170,7 +173,7 @@ class FSModel:
         return FSModel(
             source_dir,
             fs_model,
-            assemblies,
+            # assemblies,
             xtalforms,
             dataset_assignments,
             ligand_neighbourhoods,
@@ -221,7 +224,6 @@ class FSModel:
         return FSModel(
             source_dir=Path(dic["source_dir"]),
             fs_model=Path(dic['fs_model']),
-            assemblies=Path(dic['assemblies']),
             xtalforms=Path(dic['xtalforms']),
             dataset_assignments=Path(dic['dataset_assignments']),
             ligand_neighbourhoods=Path(dic['ligand_neighbourhoods']),
@@ -262,7 +264,6 @@ class FSModel:
         return {
             'source_dir': str(self.source_dir),
             'fs_model': str(self.fs_model),
-            'assemblies': str(self.assemblies),
             'xtalforms': str(self.xtalforms),
             'dataset_assignments': str(self.dataset_assignments),
             'ligand_neighbourhoods': str(self.ligand_neighbourhoods),

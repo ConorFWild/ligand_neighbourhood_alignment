@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 # import os
 import subprocess
@@ -12,6 +13,8 @@ import numpy as np
 import pandas as pd
 import yaml
 from loguru import logger
+logger.remove() # for someone not familiar with the lib, whats going on here?
+logger.add(sys.stdout, level="INFO")
 from rich import print
 
 from ligand_neighbourhood_alignment import constants
@@ -618,7 +621,6 @@ def _save_neighbourhoods(
             dic["/".join(ligand_id)] = neighbourhood.to_dict()
         yaml.safe_dump(dic, f)
 
-
 def _save_ligand_neighbourhood_transforms(fs_model, ligand_neighbourhood_transforms):
     with open(fs_model.ligand_neighbourhood_transforms, 'w') as f:
         dic = {}
@@ -1007,6 +1009,8 @@ def _update(
                 ligand_neighbourhoods,
                 structures,
             )
+        else:
+            logger.info(f'Skipping ligand: {lid}: Not in a new dataset!')
             # alignments, transforms = _get_alignments()
             # for target_lid, transform in transforms.items():
             #     ligand_neighbourhood_transforms[(lid, target_lid)] = transform
@@ -1018,9 +1022,12 @@ def _update(
     logger.info(f"Updating alignment graph...")
     logger.info(f"Previously had {len(alignability_graph.nodes)} nodes")
     logger.info(f"Previously had {len(alignability_graph.edges)} edges")
-    _update_graph(alignability_graph, ligand_neighbourhood_transforms)
+    _update_graph(
+        alignability_graph,
+        ligand_neighbourhood_transforms,
+    )
     logger.info(f"Now have {len(alignability_graph.nodes)} nodes")
-    print(alignability_graph.nodes)
+    print(sorted(alignability_graph.nodes, key=lambda x: x[0]))
     logger.info(f"Now have {len(alignability_graph.edges)} edges")
     print(alignability_graph.edges)
     _save_graph(fs_model, alignability_graph)
@@ -1217,10 +1224,15 @@ def _update(
                         print(ligand_neighbourhoods)
 
                         xmap_path = datasets[dtag].ligand_binding_events[(dtag, chain, residue)].xmap
+
+                        aligned_structure_path = ligand_neighbourhood_output.aligned_structures[canonical_site_id]
+                        aligned_structure = gemmi.read_structure(str(aligned_structure_path))
+                        aligned_res = aligned_structure[0][chain][str(residue)][0]
+
                         # logger.info(datasets[dtag].ligand_binding_events[(dtag, chain, residue)].dtag)
                         # logger.info(datasets[dtag].ligand_binding_events[(dtag, chain, residue)].chain)
                         # logger.info(datasets[dtag].ligand_binding_events[(dtag, chain, residue)].residue)   # *
-                        if xmap_path != "None":
+                        if (xmap_path != "None") and (xmap_path is not None):
                             xmap = read_xmap(xmap_path)
 
                             __align_xmap(
@@ -1236,6 +1248,7 @@ def _update(
                                 # canonical_site_transforms,
                                 canonical_site_id,
                                 aligned_event_map_path,
+                                aligned_res
                             )
                         mtz_path = datasets[dtag].mtz
                         # print(f"Mtz path: {mtz_path}")
@@ -1255,6 +1268,7 @@ def _update(
                                 # canonical_site_transforms,
                                 canonical_site_id,
                                 ligand_neighbourhood_output.aligned_xmaps[canonical_site_id],
+                                aligned_res
                             )
                             xmap = read_xmap_from_mtz(mtz_path, "Fo-Fc")
                             __align_xmap(
@@ -1270,6 +1284,7 @@ def _update(
                                 # canonical_site_transforms,
                                 canonical_site_id,
                                 ligand_neighbourhood_output.aligned_diff_maps[canonical_site_id],
+                                aligned_res
                             )
 
                     else:
@@ -1285,13 +1300,13 @@ def _load_assemblies(assemblies_file, new_assemblies_yaml):
         with open(assemblies_file, 'r') as f:
             dic = yaml.safe_load(f)
 
-        for assembly_id, assembly_info in dic.items():
+        for assembly_id, assembly_info in dic['assemblies'].items():
             assemblies[assembly_id] = dt.Assembly.from_dict(assembly_info)
 
     # Load new info and update
     if new_assemblies_yaml.exists():
         with open(new_assemblies_yaml, 'r') as f:
-            new_assemblies_dict = yaml.safe_load(f)
+            new_assemblies_dict = yaml.safe_load(f)['assemblies']
     else:
         new_assemblies_dict = {}
 
@@ -1309,7 +1324,7 @@ def _load_xtalforms(xtalforms_file, new_xtalforms_yaml):
     if xtalforms_file.exists():
 
         with open(xtalforms_file, 'r') as f:
-            dic = yaml.safe_load(f)
+            dic = yaml.safe_load(f)['xtalforms']
 
         for xtalform_id, xtalform_info in dic.items():
             xtalforms[xtalform_id] = dt.XtalForm.from_dict(xtalform_info)
@@ -1317,7 +1332,7 @@ def _load_xtalforms(xtalforms_file, new_xtalforms_yaml):
     # Load new info and update
     if new_xtalforms_yaml.exists():
         with open(new_xtalforms_yaml, 'r') as f:
-            new_xtalforms_dict = yaml.safe_load(f)
+            new_xtalforms_dict = yaml.safe_load(f)['xtalforms']
     else:
         new_xtalforms_dict = {}
 

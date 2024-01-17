@@ -136,7 +136,7 @@ def _match_cas(
                         )
                     )
 
-    if len(alignable_cas) > min_alignable_atoms:
+    if len(alignable_cas) >= min_alignable_atoms:
         sup = gemmi.superpose_positions(
             [alignable_ca[0] for alignable_ca in alignable_cas],
             [alignable_ca[1] for alignable_ca in alignable_cas],
@@ -173,6 +173,7 @@ def _update_ligand_neighbourhood_transforms(
     #     connectivities = []
     ligand_1_id = lid
     ligand_1_neighbourhood = ligand_neighbourhoods[lid]
+    matches = []
     for (ligand_2_id, ligand_2_neighbourhood,) in ligand_neighbourhoods.items():
         # See if atoms match - transform is frame 2 to frame 1
         ca_match, transform, inverse_transform = _match_cas(
@@ -185,6 +186,10 @@ def _update_ligand_neighbourhood_transforms(
             # transforms.append(transform)
             ligand_neighbourhood_transforms[(ligand_1_id, ligand_2_id)] = transform
             ligand_neighbourhood_transforms[(ligand_2_id, ligand_1_id)] = inverse_transform
+            matches.append(ligand_2_id)
+
+    if len(matches) == 0:
+        logger.warning(f"No Matches For {ligand_1_id}!")
 
             # else:
             #     connectivities.append(0)
