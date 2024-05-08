@@ -342,6 +342,7 @@ def _drop_non_binding_chains_and_symmetrize_waters(
                     atom_multiplicities[base_atom_id] += 1
                     atom_id = base_atom_id + (atom_multiplicities[base_atom_id],)
 
+
                 # Otherwise skip
                 else:
                     continue
