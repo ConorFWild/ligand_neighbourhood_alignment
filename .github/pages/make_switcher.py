@@ -58,19 +58,14 @@ def get_versions(ref: str, add: Optional[str], remove: Optional[str]) -> List[st
 
 def write_json(path: Path, repository: str, versions: str):
     org, repo_name = repository.split("/")
-    struct = [
-        dict(version=version, url=f"https://{org}.github.io/{repo_name}/{version}/")
-        for version in versions
-    ]
+    struct = [dict(version=version, url=f"https://{org}.github.io/{repo_name}/{version}/") for version in versions]
     text = json.dumps(struct, indent=2)
     print(f"JSON switcher:\n{text}")
     path.write_text(text)
 
 
 def main(args=None):
-    parser = ArgumentParser(
-        description="Make a versions.txt file from gh-pages directories"
-    )
+    parser = ArgumentParser(description="Make a versions.txt file from gh-pages directories")
     parser.add_argument(
         "--add",
         help="Add this directory to the list of existing directories",

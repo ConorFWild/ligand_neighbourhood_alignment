@@ -7,52 +7,85 @@ import sys
 import pandas as pd
 import yaml
 from loguru import logger
-logger.remove() # for someone not familiar with the lib, whats going on here?
+
+logger.remove()  # for someone not familiar with the lib, whats going on here?
 logger.add(sys.stdout, level="INFO")
 
 from ligand_neighbourhood_alignment import constants
-from ligand_neighbourhood_alignment.make_data_json import (
-    _get_ligand_binding_events_from_panddas,
-    _get_ligand_binding_events_from_structure,
-)
+
+
+# from ligand_neighbourhood_alignment.make_data_json import (
+#     _get_ligand_binding_events_from_panddas,
+#     _get_ligand_binding_events_from_structure,
+# )
 
 
 class LigandNeighbourhoodOutput:
-    def __init__(self,
-                 aligned_structures: dict[str, str],
-                 aligned_artefacts: dict[str, str],
-                 aligned_xmaps: dict[str, str],
-                 aligned_diff_maps: dict[str, str],
-        aligned_event_maps: dict[str, str],
-                 ):
+    def __init__(
+            self,
+            aligned_structures: dict[str, str],
+            aligned_artefacts: dict[str, str],
+            aligned_xmaps: dict[str, str],
+            aligned_diff_maps: dict[str, str],
+            aligned_event_maps: dict[str, str],
+            aligned_xmaps_crystallographic,
+            aligned_diff_maps_crystallographic,
+            aligned_event_maps_crystallographic
+
+    ):
         self.aligned_structures = aligned_structures
         self.aligned_artefacts: dict[str, str] = aligned_artefacts
+
         self.aligned_xmaps: dict[str, str] = aligned_xmaps
         self.aligned_diff_maps: dict[str, str] = aligned_diff_maps
         self.aligned_event_maps: dict[str, str] = aligned_event_maps
 
+        self.aligned_xmaps_crystallographic: dict[str, str] = aligned_xmaps_crystallographic
+        self.aligned_diff_maps_crystallographic: dict[str, str] = aligned_diff_maps_crystallographic
+        self.aligned_event_maps_crystallographic: dict[str, str] = aligned_event_maps_crystallographic
+
     @staticmethod
     def from_dict(dic, source_dir):
         return LigandNeighbourhoodOutput(
-            aligned_structures={k:  Path(v) for k, v in dic["aligned_structures"].items()},
-            aligned_artefacts={k:  Path(v) for k, v in dic["aligned_artefacts"].items()},
-            aligned_xmaps={k:  Path(v) for k, v in dic["aligned_xmaps"].items()},
-            aligned_diff_maps={k:  Path(v) for k, v in dic["aligned_diff_maps"].items()},
-            aligned_event_maps={k:  Path(v) for k, v in dic["aligned_event_maps"].items()},
+            aligned_structures={k: Path(v) for k, v in dic["aligned_structures"].items()},
+            aligned_artefacts={k: Path(v) for k, v in dic["aligned_artefacts"].items()},
+            aligned_xmaps={k: Path(v) for k, v in dic["aligned_xmaps"].items()},
+            aligned_diff_maps={k: Path(v) for k, v in dic["aligned_diff_maps"].items()},
+            aligned_event_maps={k: Path(v) for k, v in dic["aligned_event_maps"].items()},
+            aligned_xmaps_crystallographic={k: Path(v) for k, v in dic["aligned_xmaps_crystallographic"].items()},
+            aligned_diff_maps_crystallographic={k: Path(v) for k, v in dic["aligned_diff_maps_crystallographic"].items()},
+            aligned_event_maps_crystallographic={k: Path(v) for k, v in dic["aligned_event_maps_crystallographic"].items()}
         )
 
     def to_dict(self):
         dic = {
-            'aligned_structures': {canonical_site_id:str(path) for canonical_site_id, path in self.aligned_structures.items()},
-            'aligned_artefacts': {canonical_site_id:str(path) for canonical_site_id, path in self.aligned_artefacts.items()},
-            'aligned_xmaps': {canonical_site_id:str(path) for canonical_site_id, path in self.aligned_xmaps.items()},
-            'aligned_diff_maps': {canonical_site_id:str(path) for canonical_site_id, path in self.aligned_diff_maps.items()},
-            'aligned_event_maps': {canonical_site_id:str(path) for canonical_site_id, path in self.aligned_event_maps.items()},
+            "aligned_structures": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_structures.items()
+            },
+            "aligned_artefacts": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_artefacts.items()
+            },
+            "aligned_xmaps": {canonical_site_id: str(path) for canonical_site_id, path in self.aligned_xmaps.items()},
+            "aligned_diff_maps": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_diff_maps.items()
+            },
+            "aligned_event_maps": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_event_maps.items()
+            },
+            "aligned_xmaps_crystallographic": {canonical_site_id: str(path) for canonical_site_id, path in self.aligned_xmaps_crystallographic.items()},
+            "aligned_diff_maps_crystallographic": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_diff_maps_crystallographic.items()
+            },
+            "aligned_event_maps_crystallographic": {
+                canonical_site_id: str(path) for canonical_site_id, path in self.aligned_event_maps_crystallographic.items()
+            },
         }
         return dic
 
+
 def symlink(old_path, new_path):
     os.symlink(old_path.resolve(), new_path)
+
 
 class FSModel:
     def __init__(
@@ -64,6 +97,7 @@ class FSModel:
             dataset_assignments,
             ligand_neighbourhoods,
             alignability_graph,
+            connected_components,
             ligand_neighbourhood_transforms,
             conformer_sites,
             conformer_site_transforms,
@@ -72,7 +106,12 @@ class FSModel:
             xtalform_sites,
             reference_structure_transforms,
             alignments,
-            reference_alignments
+            reference_alignments,
+            hierarchy,
+            biochain_priorities,
+            assembly_landmarks,
+            assembly_transforms,
+            chain_to_assembly
     ):
         self.source_dir = source_dir
         self.fs_model = fs_model
@@ -81,6 +120,7 @@ class FSModel:
         self.dataset_assignments = dataset_assignments
         self.ligand_neighbourhoods = ligand_neighbourhoods
         self.alignability_graph = alignability_graph
+        self.connected_components = connected_components
         self.ligand_neighbourhood_transforms = ligand_neighbourhood_transforms
         self.conformer_sites = conformer_sites
         self.conformer_site_transforms = conformer_site_transforms
@@ -91,10 +131,16 @@ class FSModel:
         self.alignments = alignments
         self.reference_alignments = reference_alignments
 
+        self.hierarchy = hierarchy
+        self.biochain_priorities = biochain_priorities
+        self.assembly_landmarks = assembly_landmarks
+        self.assembly_transforms = assembly_transforms
+        self.chain_to_assembly = chain_to_assembly
+
     def symlink_old_data(self):
         for dtag, dataset_alignments in self.alignments.items():
             if not (self.source_dir / constants.ALIGNED_FILES_DIR / dtag).exists():
-                os.mkdir(self.source_dir / constants.ALIGNED_FILES_DIR / dtag )
+                os.mkdir(self.source_dir / constants.ALIGNED_FILES_DIR / dtag)
             for chain, chain_alignments in dataset_alignments.items():
                 for residue, ligand_neighbourhood_alignments in chain_alignments.items():
                     for canonical_site_id in ligand_neighbourhood_alignments.aligned_structures:
@@ -122,35 +168,34 @@ class FSModel:
         # Symlink old alignments
         for dtag, dtag_alignment_info in self.reference_alignments.items():
             if not (self.source_dir / constants.ALIGNED_FILES_DIR / dtag).exists():
-                os.mkdir(self.source_dir / constants.ALIGNED_FILES_DIR / dtag )
+                os.mkdir(self.source_dir / constants.ALIGNED_FILES_DIR / dtag)
             for canonical_site_id, canonical_site_alignment_info in dtag_alignment_info.items():
-                old_path= Path(canonical_site_alignment_info['aligned_structures'])
+                old_path = Path(canonical_site_alignment_info["aligned_structures"])
                 new_path = self.source_dir / constants.ALIGNED_FILES_DIR / dtag / old_path.name
                 if not new_path.exists():
                     symlink(old_path, new_path)
 
-                old_path =  Path(canonical_site_alignment_info['aligned_artefacts'])
+                old_path = Path(canonical_site_alignment_info["aligned_artefacts"])
                 new_path = self.source_dir / constants.ALIGNED_FILES_DIR / dtag / old_path.name
                 if not new_path.exists():
                     symlink(old_path, new_path)
 
-                old_path =  Path(canonical_site_alignment_info['aligned_xmaps'])
+                old_path = Path(canonical_site_alignment_info["aligned_xmaps"])
                 new_path = self.source_dir / constants.ALIGNED_FILES_DIR / dtag / old_path.name
                 if not new_path.exists():
                     symlink(old_path, new_path)
-
 
     @staticmethod
     def from_dir(
             source_dir: str,
-    #        output_dir: str,
+            #        output_dir: str,
     ):
         source_dir = Path(source_dir)
         # output_dir = Path(output_dir)
 
         fs_model = source_dir / constants.FS_MODEL_YAML_FILE_NAME
         if fs_model.exists():
-            with open(fs_model, 'r') as f:
+            with open(fs_model, "r") as f:
                 dic = yaml.safe_load(f)
             if dic is not None:
                 return FSModel.from_dict(dic)
@@ -160,6 +205,7 @@ class FSModel:
         dataset_assignments = source_dir / constants.ASSIGNED_XTALFORMS_YAML_FILE_NAME
         ligand_neighbourhoods = source_dir / constants.NEIGHBOURHOODS_YAML_FILE_NAME
         alignability_graph = source_dir / constants.ALIGNABILITY_GRAPH_FILE_NAME
+        connected_components = source_dir / constants.CONNECTED_COMPONENTS_YAML_NAME
         ligand_neighbourhood_transforms = source_dir / constants.TRANSFORMS_YAML_FILE_NAME
         conformer_sites = source_dir / constants.CONFORMER_SITE_YAML_FILE
         conformer_site_transforms = source_dir / constants.CONFORMER_SITES_TRANSFORMS_YAML_FILE_NAME
@@ -170,6 +216,12 @@ class FSModel:
         alignments = {}
         reference_alignments = {}
 
+        hierarchy = source_dir / constants.HIERARCHY_YAML
+        biochain_priorities = source_dir / constants.BIOCHAIN_PRIORITIES_YAML
+        assembly_landmarks = source_dir / constants.ASSEMBLY_LANDMARKS_YAML
+        assembly_transforms = source_dir / constants.ASSEMBLY_TRANSFORMS_YAML
+        chain_to_assembly = source_dir / constants.CHAIN_TO_ASSEMBLY_YAML
+
         return FSModel(
             source_dir,
             fs_model,
@@ -178,6 +230,7 @@ class FSModel:
             dataset_assignments,
             ligand_neighbourhoods,
             alignability_graph,
+            connected_components,
             ligand_neighbourhood_transforms,
             conformer_sites,
             conformer_site_transforms,
@@ -186,7 +239,12 @@ class FSModel:
             xtalform_sites,
             reference_structure_transforms,
             alignments,
-            reference_alignments
+            reference_alignments,
+            hierarchy,
+            biochain_priorities,
+            assembly_landmarks,
+            assembly_transforms,
+            chain_to_assembly
         )
 
     @staticmethod
@@ -197,10 +255,14 @@ class FSModel:
             alignments[dtag] = {}
             for chain, chain_alignments in dataset_alignments.items():
                 alignments[dtag][chain] = {}
-                for residue, ligand_neighbourhood_alignments in chain_alignments.items():
-                    # _dtag, _chain, _residue = ligand_neighbourhood.split("/")
-                    alignments[dtag][chain][residue] = LigandNeighbourhoodOutput.from_dict(
-                        ligand_neighbourhood_alignments, source_dir)
+                for residue, residue_alignments in chain_alignments.items():
+                    alignments[dtag][chain][residue] = {}
+
+                    for version, ligand_neighbourhood_alignments in residue_alignments.items():
+                        # _dtag, _chain, _residue = ligand_neighbourhood.split("/")
+                        alignments[dtag][chain][residue][version] = LigandNeighbourhoodOutput.from_dict(
+                            ligand_neighbourhood_alignments, source_dir
+                        )
 
         # reference_alignments = {}
         # for dtag, dataset_alignments in alignments["reference_alignments"].items():
@@ -216,96 +278,111 @@ class FSModel:
             reference_alignments[dtag] = {}
             for canonical_site_id, canonical_site_alignment_info in canonical_site_alignments.items():
                 reference_alignments[dtag][canonical_site_id] = {
-                    'aligned_structures':  Path(canonical_site_alignment_info['aligned_structures']),
-                    'aligned_artefacts':  Path(canonical_site_alignment_info['aligned_artefacts']),
-                    'aligned_xmaps':  Path(canonical_site_alignment_info['aligned_xmaps'])
+                    "aligned_structures": Path(canonical_site_alignment_info["aligned_structures"]),
+                    "aligned_artefacts": Path(canonical_site_alignment_info["aligned_artefacts"]),
+                    "aligned_xmaps": Path(canonical_site_alignment_info["aligned_xmaps"]),
                 }
 
         return FSModel(
             source_dir=Path(dic["source_dir"]),
-            fs_model=Path(dic['fs_model']),
-            xtalforms=Path(dic['xtalforms']),
-            dataset_assignments=Path(dic['dataset_assignments']),
-            ligand_neighbourhoods=Path(dic['ligand_neighbourhoods']),
-            alignability_graph=Path(dic['alignability_graph']),
-            ligand_neighbourhood_transforms=Path(dic['ligand_neighbourhood_transforms']),
-            conformer_sites=Path(dic['conformer_sites']),
-            conformer_site_transforms=Path(dic['conformer_site_transforms']),
-            canonical_sites=Path(dic['canonical_sites']),
+            fs_model=Path(dic["fs_model"]),
+            xtalforms=Path(dic["crystalforms"]),
+            dataset_assignments=Path(dic["dataset_assignments"]),
+            ligand_neighbourhoods=Path(dic["ligand_neighbourhoods"]),
+            alignability_graph=Path(dic["alignability_graph"]),
+            connected_components=Path(dic["connected_components"]),
+            ligand_neighbourhood_transforms=Path(dic["ligand_neighbourhood_transforms"]),
+            conformer_sites=Path(dic["conformer_sites"]),
+            conformer_site_transforms=Path(dic["conformer_site_transforms"]),
+            canonical_sites=Path(dic["canonical_sites"]),
             # canonical_site_transforms=Path(dic['canonical_site_transforms']),
-            xtalform_sites=Path(dic['xtalform_sites']),
-            reference_structure_transforms=Path(dic['reference_structure_transforms']),
+            xtalform_sites=Path(dic["xtalform_sites"]),
+            reference_structure_transforms=Path(dic["reference_structure_transforms"]),
             alignments=alignments,
             reference_alignments=reference_alignments,
+            hierarchy=Path(dic["hierarchy"]),
+            biochain_priorities=Path(dic["biochain_priorities"]),
+            assembly_landmarks=Path(dic["assembly_landmarks"]),
+            assembly_transforms=Path(dic["assembly_transforms"]),
+            chain_to_assembly=Path(dic["chain_to_assembly"])
         )
 
-    def to_dict(self, ):
+    def to_dict(
+            self,
+    ):
         dic = {}
         alignments = {}
         for dtag, dataset_alignments in self.alignments.items():
             alignments[dtag] = {}
             for chain, chain_alignments in dataset_alignments.items():
                 alignments[dtag][chain] = {}
-                for residue, ligand_neighbourhood_alignments in chain_alignments.items():
-                    # print(residue)
-                    alignments[dtag][chain][residue] = LigandNeighbourhoodOutput.to_dict(
-                        ligand_neighbourhood_alignments)
+                for residue, residue_alignments in chain_alignments.items():
+                    alignments[dtag][chain][residue] = {}
+                    for version, ligand_neighbourhood_alignments in residue_alignments.items():
+                        alignments[dtag][chain][residue][version] = LigandNeighbourhoodOutput.to_dict(
+                            ligand_neighbourhood_alignments
+                        )
 
         reference_alignments = {}
         for dtag, dtag_alignment_info in self.reference_alignments.items():
             reference_alignments[dtag] = {}
             for canonical_site_id, canonical_site_alignment_info in dtag_alignment_info.items():
                 reference_alignments[dtag][canonical_site_id] = {
-                    'aligned_structures': str(canonical_site_alignment_info['aligned_structures']),
-                    'aligned_artefacts': str(canonical_site_alignment_info['aligned_artefacts']),
-                    'aligned_xmaps': str(canonical_site_alignment_info['aligned_xmaps'])
+                    "aligned_structures": str(canonical_site_alignment_info["aligned_structures"]),
+                    "aligned_artefacts": str(canonical_site_alignment_info["aligned_artefacts"]),
+                    "aligned_xmaps": str(canonical_site_alignment_info["aligned_xmaps"]),
                 }
 
         return {
-            'source_dir': str(self.source_dir),
-            'fs_model': str(self.fs_model),
-            'xtalforms': str(self.xtalforms),
-            'dataset_assignments': str(self.dataset_assignments),
-            'ligand_neighbourhoods': str(self.ligand_neighbourhoods),
-            'alignability_graph': str(self.alignability_graph),
-            'ligand_neighbourhood_transforms': str(self.ligand_neighbourhood_transforms),
-            'conformer_sites': str(self.conformer_sites),
-            'conformer_site_transforms': str(self.conformer_site_transforms),
-            'canonical_sites': str(self.canonical_sites),
+            "source_dir": str(self.source_dir),
+            "fs_model": str(self.fs_model),
+            "crystalforms": str(self.xtalforms),
+            "dataset_assignments": str(self.dataset_assignments),
+            "ligand_neighbourhoods": str(self.ligand_neighbourhoods),
+            "alignability_graph": str(self.alignability_graph),
+            "connected_components": str(self.connected_components),
+            "ligand_neighbourhood_transforms": str(self.ligand_neighbourhood_transforms),
+            "conformer_sites": str(self.conformer_sites),
+            "conformer_site_transforms": str(self.conformer_site_transforms),
+            "canonical_sites": str(self.canonical_sites),
             # 'canonical_site_transforms': str(self.canonical_site_transforms),
-            'xtalform_sites': str(self.xtalform_sites),
-            'reference_structure_transforms': str(self.reference_structure_transforms),
-            'alignments': alignments,
-            'reference_alignments': reference_alignments,
+            "xtalform_sites": str(self.xtalform_sites),
+            "reference_structure_transforms": str(self.reference_structure_transforms),
+            "alignments": alignments,
+            "reference_alignments": reference_alignments,
+            'hierarchy': str(self.hierarchy),
+            'biochain_priorities': str(self.biochain_priorities),
+            'assembly_landmarks': str(self.assembly_landmarks),
+            'assembly_transforms': str(self.assembly_transforms),
+            'chain_to_assembly': str(self.chain_to_assembly)
         }
 
 
 class Datasource:
-    def __init__(self,
-                 path: str,
-                 datasource_type: str
-                 ):
+    def __init__(self, path: str, datasource_type: str):
         self.path = path
         self.datasource_type = datasource_type
 
 
 class PanDDA:
-    def __init__(self,
-                 path: str,
-                 # event_table_path: str
-                 ):
+    def __init__(
+            self,
+            path: str,
+            # event_table_path: str
+    ):
         self.path = Path(path)
         self.event_table_path = self.path / constants.PANDDA_ANALYSES_DIR / constants.PANDDA_EVENTS_INSPECT_TABLE_PATH
 
 
 class LigandBindingEvent:
-    def __init__(self,
-                 id,
-                 dtag,
-                 chain,
-                 residue,
-                 xmap,
-                 ):
+    def __init__(
+            self,
+            id,
+            dtag,
+            chain,
+            residue,
+            xmap,
+    ):
         self.id: str = id
         self.dtag: str = dtag
         self.chain: str = chain
@@ -314,13 +391,14 @@ class LigandBindingEvent:
 
 
 class Dataset:
-    def __init__(self,
-                 dtag,
-                 pdb,
-                 xmap,
-                 mtz,
-                 ligand_binding_events: dict[tuple[str, str, str], LigandBindingEvent],
-                 ):
+    def __init__(
+            self,
+            dtag,
+            pdb,
+            xmap,
+            mtz,
+            ligand_binding_events: dict[tuple[str, str, str], LigandBindingEvent],
+    ):
         self.dtag = dtag
         self.pdb = pdb
         self.xmap = xmap
@@ -329,12 +407,12 @@ class Dataset:
 
 
 class SourceDataModel:
-
-    def __init__(self,
-                 fs_model: FSModel,
-                 datasources: list[Datasource],
-                 panddas: list[PanDDA],
-                 ):
+    def __init__(
+            self,
+            fs_model: FSModel,
+            datasources: list[Datasource],
+            panddas: list[PanDDA],
+    ):
         self.fs_model = fs_model
         self.datasources = datasources
         self.panddas = panddas
@@ -356,11 +434,7 @@ class SourceDataModel:
             pandda = PanDDA(pandda_dir)
             _panddas.append(pandda)
 
-        return SourceDataModel(
-            fs_model,
-            _datasources,
-            _panddas
-        )
+        return SourceDataModel(fs_model, _datasources, _panddas)
         ...
 
     def get_datasets(self):
@@ -465,137 +539,91 @@ class SourceDataModel:
 
 
 class Generator:
-    def __init__(
-            self,
-            biomol: str,
-            chain: str,
-            triplet: str
-    ):
+    def __init__(self, biomol: str, chain: str, triplet: str):
         self.biomol: str = biomol
         self.chain: str = chain
         self.triplet: str = triplet
 
 
 class Assembly:
-    def __init__(self,
-                 reference: str,
-                 generators: list[Generator]
-                 ):
+    def __init__(self, reference: str, generators: list[Generator]):
         self.reference = reference
         self.generators = generators
 
     @staticmethod
     def from_dict(dic):
-        reference = dic['reference']
-        biomol = dic['biomol']
-        chains = dic['chains']
+        reference = dic["reference"]
+        biomol = dic["biomol"]
+        chains = dic["chains"]
 
         # Split biomol on commas and strip whitespace
-        biomol_matches = re.findall(
-            '([A-Z]+)',
-            biomol
-        )
+        biomol_matches = re.findall("([A-Z]+)", biomol)
 
         # Split chains on commas that do not follow a number, x,y or z and strip whitespace
-        chain_matches = re.findall(
-            '(([A-Z]+)([(]+[^()]+[)]+)*)',
-            chains
-        )
+        chain_matches = re.findall("(([A-Z]+)([(]+[^()]+[)]+)*)", chains)
         print(biomol_matches)
         print(chain_matches)
         # Make generators
         generators = []
         for biomol_match, chain_match in zip(biomol_matches, chain_matches):
             if len(chain_match[2]) == 0:
-                xyz = 'x,y,z'
+                xyz = "x,y,z"
             else:
                 xyz = chain_match[2][1:-1]
-            generators.append(
-                Generator(
-                    biomol_match,
-                    chain_match[1],
-                    xyz
-                )
-            )
+            generators.append(Generator(biomol_match, chain_match[1], xyz))
 
-        return Assembly(
-            reference,
-            generators
-        )
+        return Assembly(reference, generators)
 
 
 class XtalFormAssembly:
-    def __init__(
-            self,
-            assembly: str,
-            chains: list[str],
-            transforms: list[str]
-    ):
+    def __init__(self, assembly: str, chains: list[str], transforms: list[str]):
         self.assembly = assembly
         self.chains = chains
         self.transforms = transforms
 
 
 class XtalForm:
-    def __init__(self,
-                 reference: str,
-                 assemblies: dict[str, XtalFormAssembly]
-                 ):
+    def __init__(self, reference: str, assemblies: dict[str, XtalFormAssembly]):
         self.reference = reference
         self.assemblies = assemblies
 
     @staticmethod
     def from_dict(dic):
-        reference = dic['reference']
-        assemblies = dic['assemblies']
+        reference = dic["reference"]
+        assemblies = dic["assemblies"]
 
         _assemblies = {}
         for xtalform_assembly_id, xtalform_assembly_info in assemblies.items():
             assemblies[xtalform_assembly_id] = {}
-            assembly = xtalform_assembly_info['assembly']
-            chains = xtalform_assembly_info['chains']
-            chains_matches = re.findall(
-                '(([A-Z]+)([(]+[^()]+[)]+)*)',
-                chains
-            )
+            assembly = xtalform_assembly_info["assembly"]
+            chains = xtalform_assembly_info["chains"]
+            chains_matches = re.findall("(([A-Z]+)([(]+[^()]+[)]+)*)", chains)
             _chains = []
             _transforms = []
             for chain_match in chains_matches:
                 _chains.append(chain_match[1])
 
                 if len(chain_match[2]) == 0:
-                    xyz = 'x,y,z'
+                    xyz = "x,y,z"
                 else:
                     xyz = chain_match[2][1:-1]
                 _transforms.append(xyz)
 
-            _assemblies[xtalform_assembly_id] = XtalFormAssembly(
-                assembly,
-                _chains,
-                _transforms
-            )
+            _assemblies[xtalform_assembly_id] = XtalFormAssembly(assembly, _chains, _transforms)
         return XtalForm(reference, _assemblies)
 
 
 class Transform:
-    def __init__(self,
-                 vec,
-                 mat):
+    def __init__(self, vec, mat):
         self.vec: list[float] = vec
         self.mat: list[list[float]] = mat
 
     @staticmethod
     def from_dict(dic):
-        return Transform(
-            dic['vec'],
-            dic['mat']
-        )
+        return Transform(dic["vec"], dic["mat"])
 
     def to_dict(self):
-        return {
-            'vec': self.vec,
-            'mat': self.mat
-        }
+        return {"vec": self.vec, "mat": self.mat}
 
 
 class Atom:
@@ -615,30 +643,15 @@ class Atom:
 
     @staticmethod
     def from_dict(dic):
-        return Atom(
-            dic["element"],
-            dic["x"],
-            dic["y"],
-            dic["z"],
-            Transform.from_dict(dic["image"])
-        )
+        return Atom(dic["element"], dic["x"], dic["y"], dic["z"], Transform.from_dict(dic["image"]))
 
     def to_dict(self):
         dic = {}
-        return {
-            "element": self.element,
-            'x': self.x,
-            'y': self.y,
-            'z': self.z,
-            'image': self.image.to_dict()
-        }
+        return {"element": self.element, "x": self.x, "y": self.y, "z": self.z, "image": self.image.to_dict()}
 
 
 class Neighbourhood:
-    def __init__(self,
-                 atoms: dict[tuple[str, str, str], Atom],
-                 artefact_atoms: dict[tuple[str, str, str], Atom]
-                 ):
+    def __init__(self, atoms: dict[tuple[str, str, str], Atom], artefact_atoms: dict[tuple[str, str, str], Atom]):
         self.atoms = atoms
         self.artefact_atoms = artefact_atoms
 
@@ -647,8 +660,8 @@ class Neighbourhood:
         atoms = {}
         artefact_atoms = {}
 
-        _atoms = dic['atoms']
-        _artefact_atoms = dic['artefact_atoms']
+        _atoms = dic["atoms"]
+        _artefact_atoms = dic["artefact_atoms"]
         for atom_id, atom_info in _atoms.items():
             chain, residue, atom = atom_id.split("/")
             atoms[(chain, residue, atom)] = Atom.from_dict(atom_info)
@@ -658,19 +671,16 @@ class Neighbourhood:
             chain, residue, atom = atom_id.split("/")
             artefact_atoms[(chain, residue, atom)] = Atom.from_dict(atom_info)
 
-        return Neighbourhood(
-            atoms,
-            artefact_atoms
-        )
+        return Neighbourhood(atoms, artefact_atoms)
 
     def to_dict(self):
         dic = {}
-        dic['atoms'] = {}
+        dic["atoms"] = {}
         for atom_id, atom in self.atoms.items():
-            dic['atoms']["/".join(atom_id)] = atom.to_dict()
-        dic['artefact_atoms'] = {}
+            dic["atoms"]["/".join(atom_id)] = atom.to_dict()
+        dic["artefact_atoms"] = {}
         for atom_id, atom in self.artefact_atoms.items():
-            dic['artefact_atoms']["/".join(atom_id)] = atom.to_dict()
+            dic["artefact_atoms"]["/".join(atom_id)] = atom.to_dict()
 
         return dic
 
@@ -683,35 +693,41 @@ class ConformerSite:
     def __init__(
             self,
             residues: list[tuple[str, str]],
-            members: list[tuple[str, str, str]],
-            reference_ligand_id: tuple[str, str, str]
+            residues_aligned: list[tuple[str, str]],
+            members: list[tuple[str, str, str, str]],
+            reference_ligand_id: tuple[str, str, str, str],
     ):
         self.residues: list[tuple[str, str]] = residues
-        self.members: list[tuple[str, str, str]] = members
-        self.reference_ligand_id: tuple[str, str, str] = reference_ligand_id
+        self.residues_aligned = residues_aligned
+        self.members: list[tuple[str, str, str, str]] = members
+        self.reference_ligand_id: tuple[str, str, str, str] = reference_ligand_id
 
     @staticmethod
     def from_dict(dic):
         residues = []
-        for res in dic['residues']:
+        for res in dic["residues"]:
             chain, residue, name = res.split("/")
             residues.append((chain, residue, name))
-        members = []
-        for member in dic['members']:
-            dtag, chain, residue = member.split("/")
-            members.append((dtag, chain, residue))
-        ref_dtag, ref_chain, ref_residue = dic["reference_ligand_id"].split("/")
-        return ConformerSite(
-            residues,
-            members,
-            (ref_dtag, ref_chain, ref_residue)
-        )
+        residues_aligned = []
+        for res in dic["residues_aligned"]:
+            chain, residue, name = res.split("/")
+            residues.append((chain, residue, name))
 
-    def to_dict(self, ):
+        members = []
+        for member in dic["members"]:
+            dtag, chain, residue, version = member.split("/")
+            members.append((dtag, chain, residue, version))
+        ref_dtag, ref_chain, ref_residue, version = dic["reference_ligand_id"].split("/")
+        return ConformerSite(residues, residues_aligned, members, (ref_dtag, ref_chain, ref_residue, version))
+
+    def to_dict(
+            self,
+    ):
         return {
-            'residues': ["/".join(resid) for resid in self.residues],
-            'members': ["/".join(lid) for lid in self.members],
-            'reference_ligand_id': "/".join(self.reference_ligand_id)
+            "residues": [x for x in sorted(["/".join(resid) for resid in self.residues])],
+            "residues_aligned": [x for x in sorted(["/".join(resid) for resid in self.residues_aligned])],
+            "members": [x for x in sorted(["/".join(lid) for lid in self.members])],
+            "reference_ligand_id": "/".join(self.reference_ligand_id),
         }
 
 
@@ -721,44 +737,48 @@ class CanonicalSite:
             conformer_site_ids: list[str],
             residues: list[tuple[str, str]],
             reference_conformer_site_id: str,
-            global_reference_dtag: str
+            global_reference_dtag: str,
+            centroid_res: tuple[str, str, str, str],
     ):
         self.conformer_site_ids: list[str] = conformer_site_ids
         self.residues: list[tuple[str, str]] = residues
         self.reference_conformer_site_id: str = reference_conformer_site_id
         self.global_reference_dtag: str = global_reference_dtag
+        self.centroid_res = centroid_res
 
     @staticmethod
     def from_dict(dic):
         residues = []
-        for res in dic['residues']:
+        for res in dic["residues"]:
             chain, residue, name = res.split("/")
             residues.append((chain, residue, name))
 
         return CanonicalSite(
-            dic['conformer_site_ids'],
+            dic["conformer_site_ids"],
             residues,
-            dic['reference_conformer_site_id'],
-            dic['global_reference_dtag']
-
+            dic["reference_conformer_site_id"],
+            dic["global_reference_dtag"],
+            dic["centroid_res"].split("/"),
         )
 
     def to_dict(self):
         return {
-            'conformer_site_ids': self.conformer_site_ids,
-            'residues': ["/".join(res) for res in self.residues],
-            'reference_conformer_site_id': self.reference_conformer_site_id,
-            'global_reference_dtag': self.global_reference_dtag
+            "conformer_site_ids": self.conformer_site_ids,
+            "residues": [x for x in sorted(["/".join(res) for res in self.residues])],
+            "reference_conformer_site_id": self.reference_conformer_site_id,
+            "global_reference_dtag": self.global_reference_dtag,
+            "centroid_res": "/".join(self.centroid_res),
         }
 
 
 class XtalFormSite:
-    def __init__(self,
-                 xtalform_id: str,
-                 crystallographic_chain: str,
-                 canonical_site_id: str,
-                 members: list[tuple[str, str, str]]
-                 ):
+    def __init__(
+            self,
+            xtalform_id: str,
+            crystallographic_chain: str,
+            canonical_site_id: str,
+            members: list[tuple[str, str, str]],
+    ):
         self.xtalform_id: str = xtalform_id
         self.crystallographic_chain: str = crystallographic_chain
         self.canonical_site_id: str = canonical_site_id
@@ -767,23 +787,21 @@ class XtalFormSite:
     @staticmethod
     def from_dict(dic):
         members = []
-        for member in dic['members']:
-            dtag, chain, residue = member.split("/")
-            members.append((dtag, chain, residue))
-        return XtalFormSite(
-            dic['xtalform_id'],
-            dic['crystallographic_chain'],
-            dic['canonical_site_id'],
-            members
-        )
+        for member in dic["members"]:
+            dtag, chain, residue, version = member.split("/")
+            members.append((dtag, chain, residue, version))
+        return XtalFormSite(dic["xtalform_id"], dic["crystallographic_chain"], dic["canonical_site_id"], members)
 
     def to_dict(self):
         dic = {}
-        dic['members'] = []
+        dic["members"] = []
         for member in self.members:
-            dic['members'].append("/".join(member))
+            dic["members"].append("/".join(member))
 
-        dic['xtalform_id'] = self.xtalform_id
-        dic['crystallographic_chain'] = self.crystallographic_chain
-        dic['canonical_site_id'] = self.canonical_site_id
+        dic["xtalform_id"] = self.xtalform_id
+        dic["crystallographic_chain"] = self.crystallographic_chain
+        dic["canonical_site_id"] = self.canonical_site_id
         return dic
+
+    def __rich_repr__(self):
+        yield self.to_dict()

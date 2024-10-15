@@ -43,6 +43,7 @@ def get_closest_lig(structure, coord):
 
     return min(distances, key=lambda x: distances[x])
 
+
 from ligand_neighbourhood_alignment import dt
 
 
@@ -62,11 +63,7 @@ def get_ligand_binding_events_from_structure(
 
                 if residue.name == "DMS":
                     continue
-                lids.append(
-                    LigandID(
-                        dtag=dtag, chain=chain.name, residue=residue.seqid.num
-                    )
-                )
+                lids.append(LigandID(dtag=dtag, chain=chain.name, residue=residue.seqid.num))
                 lbe = LigandBindingEvent(
                     id=event_id,
                     dtag=dtag,
@@ -78,6 +75,7 @@ def get_ligand_binding_events_from_structure(
             lbes.append(lbe)
 
     return LigandBindingEvents(ligand_ids=lids, ligand_binding_events=lbes)
+
 
 def _get_ligand_binding_events_from_structure(
     pdb_path: Path,
@@ -116,9 +114,7 @@ def get_ligand_binding_events_from_panddas(pandda_event_csvs, pdb_path, dtag):
     lbes = []
     # Iterate the events, and if a match add a ligand binding event
     for pandda_path, event_table in pandda_event_csvs.items():
-        processed_datasets_dir = (
-            Path(pandda_path) / constants.PANDDA_PROCESSED_DATASETS_DIR
-        )
+        processed_datasets_dir = Path(pandda_path) / constants.PANDDA_PROCESSED_DATASETS_DIR
 
         for idx, row in event_table.iterrows():
             _dtag = row["dtag"]
@@ -148,11 +144,8 @@ def get_ligand_binding_events_from_panddas(pandda_event_csvs, pdb_path, dtag):
                 continue
 
             # Get the event map
-            xmap_path = (
-                processed_dataset_dir
-                / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
-                    dtag=dtag, event_id=event_id, bdc=bdc
-                )
+            xmap_path = processed_dataset_dir / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
+                dtag=dtag, event_id=event_id, bdc=bdc
             )
             lid = LigandID(dtag=dtag, chain=chain, residue=residue_num)
             lbe = LigandBindingEvent(
@@ -174,9 +167,7 @@ def _get_ligand_binding_events_from_panddas(pandda_event_csvs, pdb_path, dtag):
     ligand_binding_events = {}
     # Iterate the events, and if a match add a ligand binding event
     for pandda_path, event_table in pandda_event_csvs.items():
-        processed_datasets_dir = (
-            Path(pandda_path) / constants.PANDDA_PROCESSED_DATASETS_DIR
-        )
+        processed_datasets_dir = Path(pandda_path) / constants.PANDDA_PROCESSED_DATASETS_DIR
 
         for idx, row in event_table.iterrows():
             _dtag = row["dtag"]
@@ -206,11 +197,8 @@ def _get_ligand_binding_events_from_panddas(pandda_event_csvs, pdb_path, dtag):
                 continue
 
             # Get the event map
-            xmap_path = (
-                processed_dataset_dir
-                / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
-                    dtag=dtag, event_id=event_id, bdc=bdc
-                )
+            xmap_path = processed_dataset_dir / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
+                dtag=dtag, event_id=event_id, bdc=bdc
             )
             lbe = dt.LigandBindingEvent(
                 id=str(event_id),
@@ -231,14 +219,10 @@ def make_data_json_from_pandda_dir(pandda_dir: Path, output_dir: Path):
 
     # Get the PanDDA dirs
     analyses_dir: Path = pandda_dir / constants.PANDDA_ANALYSES_DIR
-    processed_datasets_dir: Path = (
-        pandda_dir / constants.PANDDA_PROCESSED_DATASETS_DIR
-    )
+    processed_datasets_dir: Path = pandda_dir / constants.PANDDA_PROCESSED_DATASETS_DIR
 
     # Get the event table
-    event_table_path: Path = (
-        analyses_dir / constants.PANDDA_EVENTS_INSPECT_TABLE_PATH
-    )
+    event_table_path: Path = analyses_dir / constants.PANDDA_EVENTS_INSPECT_TABLE_PATH
     event_table = pd.read_csv(event_table_path)
 
     # Iterate the event table, pulling out associated ligands and
@@ -261,12 +245,9 @@ def make_data_json_from_pandda_dir(pandda_dir: Path, output_dir: Path):
 
         # Get the structure
         processed_dataset_dir = processed_datasets_dir / dtag
-        final_structure_dir_path = (
-            processed_dataset_dir / constants.PANDDA_FINAL_STRUCTURE_PDB_DIR
-        )
-        final_structure_path = (
-            final_structure_dir_path
-            / constants.PANDDA_FINAL_STRUCTURE_PDB_TEMPLATE.format(dtag=dtag)
+        final_structure_dir_path = processed_dataset_dir / constants.PANDDA_FINAL_STRUCTURE_PDB_DIR
+        final_structure_path = final_structure_dir_path / constants.PANDDA_FINAL_STRUCTURE_PDB_TEMPLATE.format(
+            dtag=dtag
         )
         structure = gemmi.read_structure(str(final_structure_path))
 
@@ -277,11 +258,8 @@ def make_data_json_from_pandda_dir(pandda_dir: Path, output_dir: Path):
             continue
 
         # Get the event map
-        xmap_path = (
-            processed_dataset_dir
-            / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
-                dtag=dtag, event_id=event_id, bdc=bdc
-            )
+        xmap_path = processed_dataset_dir / constants.PANDDA_EVENT_MAP_TEMPLATE.format(
+            dtag=dtag, event_id=event_id, bdc=bdc
         )
 
         # If dtag not already processed, add
@@ -301,12 +279,9 @@ def make_data_json_from_pandda_dir(pandda_dir: Path, output_dir: Path):
     dataset_ids = []
     for dtag, events in initial_datasets.items():
         processed_dataset_dir = processed_datasets_dir / dtag
-        final_structure_dir_path = (
-            processed_dataset_dir / constants.PANDDA_FINAL_STRUCTURE_PDB_DIR
-        )
-        final_structure_path = (
-            final_structure_dir_path
-            / constants.PANDDA_FINAL_STRUCTURE_PDB_TEMPLATE.format(dtag=dtag)
+        final_structure_dir_path = processed_dataset_dir / constants.PANDDA_FINAL_STRUCTURE_PDB_DIR
+        final_structure_path = final_structure_dir_path / constants.PANDDA_FINAL_STRUCTURE_PDB_TEMPLATE.format(
+            dtag=dtag
         )
         event_ids = [
             LigandID(
@@ -328,9 +303,7 @@ def make_data_json_from_pandda_dir(pandda_dir: Path, output_dir: Path):
         dataset_ids.append(DatasetID(dtag=dtag))
         datasets.append(dataset)
 
-    system_data: SystemData = SystemData(
-        dataset_ids=dataset_ids, datasets=datasets
-    )
+    system_data: SystemData = SystemData(dataset_ids=dataset_ids, datasets=datasets)
 
     logger.info(f"Logging {len(system_data.datasets)} datasets")
     logger.info(f"Saveing output json to {output_dir}/data.json")
@@ -355,9 +328,7 @@ def make_data_json(data_dir: Path, output_dir: Path):
         datasets.append(dataset)
         dataset_ids.append(DatasetID(dtag=dtag))
 
-    system_data: SystemData = SystemData(
-        dataset_ids=dataset_ids, datasets=datasets
-    )
+    system_data: SystemData = SystemData(dataset_ids=dataset_ids, datasets=datasets)
 
     logger.info(f"Logging {len(system_data.datasets)} datasets")
     logger.info(f"Saveing output json to {output_dir}/data.json")

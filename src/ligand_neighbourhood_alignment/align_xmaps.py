@@ -7,6 +7,7 @@ import networkx as nx
 import numpy as np
 from loguru import logger
 
+from ligand_neighbourhood_alignment import alignment_heirarchy
 from ligand_neighbourhood_alignment.data import (
     Block,
     CanonicalSites,
@@ -249,10 +250,10 @@ def _get_interpolation_range(neighbourhood: dt.Neighbourhood, transform, referen
 
 
 def interpolate_range(
-        reference_xmap,
-        xmap,
-        interpolation_ranges: list[Block],
-        transform,
+    reference_xmap,
+    xmap,
+    interpolation_ranges: list[Block],
+    transform,
 ):
     # Make a xmap on reference template
     new_xmap = gemmi.FloatGrid(reference_xmap.nu, reference_xmap.nv, reference_xmap.nw)
@@ -294,26 +295,26 @@ def interpolate_range(
         logger.debug(f"Block Z Range in output xmap: {rzi} : {rzf}")
 
         grid_np[
-        rxi:rxf,
-        ryi:ryf,
-        rzi:rzf,
+            rxi:rxf,
+            ryi:ryf,
+            rzi:rzf,
         ] = arr
 
     return new_xmap
 
 
 def align_xmap(
-        neighbourhoods: LigandNeighbourhoods,
-        g,
-        transforms: Transforms,
-        site_transforms: SiteTransforms,
-        reference_xmap,
-        subsite_reference_id: LigandID,
-        site_id: int,
-        subsite_id: int,
-        lid: LigandID,
-        xmap,
-        output_path: Path,
+    neighbourhoods: LigandNeighbourhoods,
+    g,
+    transforms: Transforms,
+    site_transforms: SiteTransforms,
+    reference_xmap,
+    subsite_reference_id: LigandID,
+    site_id: int,
+    subsite_id: int,
+    lid: LigandID,
+    xmap,
+    output_path: Path,
 ):
     # Get the ligand neighbourhood
     neighbourhood: LigandNeighbourhood = neighbourhoods.get_neighbourhood(lid)
@@ -392,8 +393,31 @@ def _get_box(neighbourhood: dt.Neighbourhood, xmap, transform):
         )
     return box
 
+
 def _write_xmap_from_ccp4(ccp4, path):
     ccp4.write_ccp4_map(str(path))
+
+def _write_cut_xmap(new_xmap, aligned_res, crystallographic_output_path):
+    new_st = gemmi.Structure()
+    new_model = gemmi.Model("0")
+    new_st.add_model(new_model)
+    chain = gemmi.Chain("A")
+
+    new_st.add_model(new_model)
+    new_st[0].add_chain(chain)
+    new_st[0][0].add_residue(aligned_res)
+
+    new_st.cell = new_xmap.unit_cell
+    new_st.spacegroup_hm = gemmi.find_spacegroup_by_name('P 1').hm
+
+
+    ccp4 = gemmi.Ccp4Map()
+    ccp4.grid = new_xmap
+    ccp4.grid.spacegroup = gemmi.SpaceGroup("P1")
+    ccp4.update_ccp4_header()
+    ccp4.set_extent(new_st.calculate_fractional_box(margin=7.5))
+    ccp4.write_ccp4_map(str(crystallographic_output_path))
+
 
 def _write_xmap(xmap, path: Path, neighbourhood: dt.Neighbourhood, transform):
 
@@ -415,7 +439,6 @@ def _write_xmap(xmap, path: Path, neighbourhood: dt.Neighbourhood, transform):
 
     ccp4.setup(float("nan"))
     ccp4.update_ccp4_header()
-
 
     ccp4.write_ccp4_map(str(path))
 
@@ -441,19 +464,14 @@ def get_frame_bounds(ligand_lower_bound, ligand_upper_bound, border, step):
 
 def get_frame_array(frame_lower_bound, frame_upper_bound, step):
     interval = np.round((frame_upper_bound - frame_lower_bound) / step)
-    return np.zeros(
-        (int(interval[0]), int(interval[1]), int(interval[2])),
-        dtype=np.float32
-    )
+    return np.zeros((int(interval[0]), int(interval[1]), int(interval[2])), dtype=np.float32)
     ...
 
 
 def get_frame_transform(frame_lower_bound, frame_array, step):
     tr = gemmi.Transform()
     tr.vec.fromlist([x for x in frame_lower_bound])
-    tr.mat.fromlist(
-        (np.eye(3) * step).tolist()
-    )
+    tr.mat.fromlist((np.eye(3) * step).tolist())
     return tr
 
     ...
@@ -461,14 +479,7 @@ def get_frame_transform(frame_lower_bound, frame_array, step):
 
 def get_cell(frame_array, step):
     shape = frame_array.shape
-    cell = gemmi.UnitCell(
-        shape[0] * step,
-        shape[1] * step,
-        shape[2] * step,
-        90.0,
-        90.0,
-        90.0
-    )
+    cell = gemmi.UnitCell(shape[0] * step, shape[1] * step, shape[2] * step, 90.0, 90.0, 90.0)
     return cell
 
 
@@ -480,7 +491,7 @@ def get_new_map(cell, sample, frame_min, step):
     ccp4 = gemmi.Ccp4Map()
     ccp4.grid = grid
     ccp4.grid.set_unit_cell(cell)
-    ccp4.grid.spacegroup = gemmi.SpaceGroup('P1')
+    ccp4.grid.spacegroup = gemmi.SpaceGroup("P1")
     ccp4.update_ccp4_header()
     #     ccp4.set_header_float(50, frame_min[0]/step)
     #     ccp4.set_header_float(51, frame_min[1]/step)
@@ -490,12 +501,10 @@ def get_new_map(cell, sample, frame_min, step):
     ccp4.set_header_float(52, frame_min[2])
     return ccp4
 
-def resample_xmap(
-        new_xmap,
-        aligned_res
-    ):
+
+def resample_xmap(new_xmap, aligned_res):
     step = 0.5
-    border = 5.0
+    border = 7.5
     m = new_xmap
     # st = gemmi.read_structure('XX01ZVNS2B-x0051_B_301_XX01ZVNS2B-x0429+B+203.pdb')
     lig = aligned_res
@@ -522,23 +531,29 @@ def resample_xmap(
     cell = get_cell(frame_array, step)
     # print(cell)
 
+    print(f'Origin for xmap is now: {frame_lower_bound}')
+
     new_map = get_new_map(cell, frame_array, frame_lower_bound, step)
     return new_map
 
+
 def __align_xmap(
-        neighbourhood: dt.Neighbourhood,
-        g,
-        ligand_neighbourhood_transforms: dict[tuple[tuple[str, str, str], tuple[str, str, str]], dt.Transform],
-        reference_xmap,
-        subsite_reference_id: tuple[str,str,str],
-        lid: tuple[str, str, str],
-        xmap,
-        conformer_site_transforms,
-        conformer_site_id,
-        # canonical_site_transforms,
-        canonical_site_id,
-        output_path: Path,
-    aligned_res
+    neighbourhood: dt.Neighbourhood,
+    g,
+    ligand_neighbourhood_transforms: dict[tuple[tuple[str, str, str], tuple[str, str, str]], dt.Transform],
+    reference_xmap,
+    subsite_reference_id: tuple[str, str, str],
+    lid: tuple[str, str, str],
+    xmap,
+    conformer_site_transforms,
+    conformer_site_id,
+    # canonical_site_transforms,
+    canonical_site_id,
+    output_path: Path,
+crystallographic_output_path,
+    aligned_res,
+chain_to_assembly_transform,
+assembly_transform
 ):
     # Get the ligand neighbourhood
     # neighbourhood: LigandNeighbourhood = neighbourhoods.get_neighbourhood(lid)
@@ -567,12 +582,19 @@ def __align_xmap(
 
     # Get the subsite transform
     # print(conformer_site_transforms)
-    conformer_site_transform = transform_to_gemmi(conformer_site_transforms[(canonical_site_id, conformer_site_id)])
-    running_transform = conformer_site_transform.combine(running_transform)
+    # conformer_site_transform = transform_to_gemmi(conformer_site_transforms[(canonical_site_id, conformer_site_id)])
+    # running_transform = conformer_site_transform.combine(running_transform)
 
     # Get the site transform
     # canonical_site_transform = transform_to_gemmi(canonical_site_transforms[canonical_site_id])
     # running_transform = canonical_site_transform.combine()
+
+    # Update the transform with the assembly alignment
+    # # Get the xtalform to assembly transform
+    running_transform = alignment_heirarchy._transform_to_gemmi(chain_to_assembly_transform).combine(running_transform)
+
+    # # Get the assembly alignment transform
+    running_transform = alignment_heirarchy._transform_to_gemmi(assembly_transform).combine(running_transform)
 
     logger.debug(
         f"Transform from native frame to subsite frame to site frame is: {gemmi_to_transform(running_transform)}"
@@ -590,10 +612,7 @@ def __align_xmap(
     )
 
     # Resample the xmap to the aligned structure frame
-    resampled_xmap = resample_xmap(
-        new_xmap,
-        aligned_res
-    )
+    resampled_xmap = resample_xmap(new_xmap, aligned_res)
 
     # Output the xmap
     # _write_xmap(
@@ -606,13 +625,17 @@ def __align_xmap(
     _write_xmap_from_ccp4(
         resampled_xmap,
         output_path,
-
     )
+
+    # Write a restricted crystallographic map
+    _write_cut_xmap(new_xmap, aligned_res, crystallographic_output_path)
+
 
 
 def read_xmap_from_mtz(
-        mtz_path: Path,
-        map_type="2Fo-Fc",):
+    mtz_path: Path,
+    map_type="2Fo-Fc",
+):
     mtz = gemmi.read_mtz_file(str(mtz_path))
 
     if map_type == "2Fo-Fc":
@@ -644,15 +667,15 @@ def read_xmap_from_mtz(
 
 
 def _align_xmaps(
-        system_data: SystemData,
-        structures,
-        canonical_sites: CanonicalSites,
-        conformer_sites: ConformerSites,
-        neighbourhoods: LigandNeighbourhoods,
-        g,
-        transforms: Transforms,
-        site_transforms: SiteTransforms,
-        output: Output,
+    system_data: SystemData,
+    structures,
+    canonical_sites: CanonicalSites,
+    conformer_sites: ConformerSites,
+    neighbourhoods: LigandNeighbourhoods,
+    g,
+    transforms: Transforms,
+    site_transforms: SiteTransforms,
+    output: Output,
 ):
     # Get the global reference
     # reference_lid: LigandID = canonical_sites.reference_site.reference_ligand_id
@@ -779,14 +802,14 @@ def _align_xmaps(
 
 
 def _align_xmap(
-        system_data: SystemData,
-        canonical_sites: CanonicalSites,
-        conformer_sites: ConformerSites,
-        neighbourhoods: LigandNeighbourhoods,
-        g,
-        transforms: Transforms,
-        site_transforms: SiteTransforms,
-        output: Output,
+    system_data: SystemData,
+    canonical_sites: CanonicalSites,
+    conformer_sites: ConformerSites,
+    neighbourhoods: LigandNeighbourhoods,
+    g,
+    transforms: Transforms,
+    site_transforms: SiteTransforms,
+    output: Output,
 ):
     # Get the global reference
     # reference_lid: LigandID = canonical_sites.reference_site.reference_ligand_id

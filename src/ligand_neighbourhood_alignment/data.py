@@ -526,8 +526,6 @@ def get_box(neighbourhood: LigandNeighbourhood, xmap, transform):
     return box
 
 
-
-
 def write_xmap(xmap, path: Path, neighbourhood: LigandNeighbourhood, transform):
 
     ccp4 = gemmi.Ccp4Map()
@@ -546,9 +544,6 @@ def write_xmap(xmap, path: Path, neighbourhood: LigandNeighbourhood, transform):
     ccp4.update_ccp4_header()
 
     ccp4.write_ccp4_map(str(path))
-
-
-
 
 
 def read_graph(path: Path):

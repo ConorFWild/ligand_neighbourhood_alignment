@@ -34,9 +34,7 @@ def get_canonical_sites(
     for ligand_id, ligand_neighbourhood in ligand_neighbourhoods.items():
         logger.debug(f"{ligand_id}")
         # Check if there is a match
-        match: int | None = match_neighbourhood_to_sites(
-            canonical_sites, ligand_neighbourhood
-        )
+        match: int | None = match_neighbourhood_to_sites(canonical_sites, ligand_neighbourhood)
 
         # If so add the ligand id to the members of the canonical site
         if match:
@@ -72,12 +70,8 @@ def get_canonical_sites(
             canonical_site_index,
             canonical_site_ligand_ids,
         ) in canonical_site_members.items():
-            canonical_site: CanonicalSite = canonical_sites[
-                canonical_site_index
-            ]
-            rematch: bool = match_neighbourhood_to_site(
-                canonical_site, ligand_neighbourhood
-            )
+            canonical_site: CanonicalSite = canonical_sites[canonical_site_index]
+            rematch: bool = match_neighbourhood_to_site(canonical_site, ligand_neighbourhood)
             if rematch:
                 if ligand_id not in canonical_site_ligand_ids:
                     canonical_site_ligand_ids.append(ligand_id)

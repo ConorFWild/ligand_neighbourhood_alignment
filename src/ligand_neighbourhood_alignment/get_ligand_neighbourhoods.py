@@ -44,8 +44,8 @@ def get_structure_fragments(dataset: Dataset, structure: Structure) -> dict[Liga
 
 
 def _get_model_and_artefact_atoms(
-        residue_neighbours: dict[tuple[float, float, float], gemmi.NeighborSearch.Mark],
-        structure: Structure,
+    residue_neighbours: dict[tuple[float, float, float], gemmi.NeighborSearch.Mark],
+    structure: Structure,
 ) -> tuple[list[gemmi.NeighborSearch.Mark], list[gemmi.NeighborSearch.Mark]]:
     # Check each mark for its image and partition them on this
     model_atoms: list[gemmi.NeighborSearch.Mark] = []
@@ -72,8 +72,8 @@ def _get_model_and_artefact_atoms(
 
 
 def __get_model_and_artefact_atoms(
-        residue_neighbours: dict[tuple[float, float, float], gemmi.NeighborSearch.Mark],
-        structure: Structure,
+    residue_neighbours: dict[tuple[float, float, float], gemmi.NeighborSearch.Mark],
+    structure: Structure,
 ) -> tuple[dict[gemmi.NeighborSearch.Mark, gemmi.CRA], dict[gemmi.NeighborSearch.Mark, gemmi.CRA]]:
     # Check each mark for its image and partition them on this
     model_atoms: dict[gemmi.NeighborSearch.Mark, gemmi.CRA] = {}
@@ -100,9 +100,9 @@ def __get_model_and_artefact_atoms(
 
 
 def get_model_and_artefact_atoms(
-        residue_neighbours: list[tuple[gemmi.Position, gemmi.CRA]],
-        structure: Structure,
-        fragment,
+    residue_neighbours: list[tuple[gemmi.Position, gemmi.CRA]],
+    structure: Structure,
+    fragment,
 ) -> tuple[list[tuple[gemmi.Position, gemmi.CRA]], list[tuple[gemmi.Position, gemmi.CRA]]]:
     # Check each mark for its image and partition them on this
     model_atoms: list[tuple[gemmi.Position, gemmi.CRA]] = []
@@ -162,11 +162,11 @@ def get_model_and_artefact_atoms(
 
 
 def get_ligand_neighbourhood(
-        structure: Structure,
-        ns: gemmi.NeighborSearch,
-        fragment: gemmi.Residue,
-        min_dist: float = 0.01,
-        max_dist: float = 5.0,
+    structure: Structure,
+    ns: gemmi.NeighborSearch,
+    fragment: gemmi.Residue,
+    min_dist: float = 0.01,
+    max_dist: float = 5.0,
 ) -> LigandNeighbourhood:
     # For each atom, get the neighbouring atoms, and filter them on their
     # real space position
@@ -290,11 +290,11 @@ from ligand_neighbourhood_alignment import dt
 
 
 def _get_ligand_neighbourhood(
-        structure,
-        ns: gemmi.NeighborSearch,
-        fragment: gemmi.Residue,
-        min_dist: float = 0.01,
-        max_dist: float = 5.0,
+    structure,
+    ns: gemmi.NeighborSearch,
+    fragment: gemmi.Residue,
+    min_dist: float = 0.01,
+    max_dist: float = 5.0,
 ):
     # For each atom, get the neighbouring atoms, and filter them on their
     # real space position
@@ -401,16 +401,13 @@ def _get_ligand_neighbourhood(
         )
 
     # Cosntruct the neighbourhood
-    ligand_neighbourhood = dt.Neighbourhood(
-        model_atoms,
-        artefact_atoms
-    )
+    ligand_neighbourhood = dt.Neighbourhood(model_atoms, artefact_atoms)
 
     return ligand_neighbourhood
 
 
 def get_dataset_neighbourhoods(
-        dataset: Dataset, xtalform: XtalForm, max_radius: float = 7.0
+    dataset: Dataset, xtalform: XtalForm, max_radius: float = 7.0
 ) -> dict[LigandID, LigandNeighbourhood]:
     # Load the structure
     logger.debug(dataset.pdb)
@@ -438,9 +435,9 @@ def get_dataset_neighbourhoods(
 
 
 def get_ligand_neighbourhoods(
-        system_data: SystemData,
-        xtalforms: XtalForms,
-        assigned_xtalforms: AssignedXtalForms,
+    system_data: SystemData,
+    xtalforms: XtalForms,
+    assigned_xtalforms: AssignedXtalForms,
 ) -> LigandNeighbourhoods:
     # Iterate over data, loading in structures, getting ligands for each
     # structure and finding their neighbourhoods

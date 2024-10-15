@@ -63,9 +63,7 @@ def get_transforms(ligand_neighbourhoods: LigandNeighbourhoods, g):
             ligand_neighbourhoods.ligand_neighbourhoods,
         ):
             if ligand_id_2 in g[ligand_id_1].neighbours():
-                transform = get_transform(
-                    ligand_neighbourhood_2, ligand_neighbourhood_1
-                )
+                transform = get_transform(ligand_neighbourhood_2, ligand_neighbourhood_1)
                 transforms[ligand_id_1][ligand_id_2] = transform
 
     return Transforms(transforms=transforms)

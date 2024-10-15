@@ -21,11 +21,13 @@ def match_atom(
 
     return False
 
+
 from ligand_neighbourhood_alignment import dt
 
+
 def _match_atom(
-    canonical_site_atom_id: tuple[str, str,str],
-    ligand_neighbourhood_atom_id: tuple[str, str,str],
+    canonical_site_atom_id: tuple[str, str, str],
+    ligand_neighbourhood_atom_id: tuple[str, str, str],
     ignore_chain=False,
 ) -> bool:
     # id_1 = canonical_site_atom.atom_id
@@ -74,9 +76,7 @@ def match_neighbourhood_to_site(
     min_alignable_atoms: int = 5,
 ) -> bool:
     # Check if there is an alignable number of atoms shared between the
-    return match_atoms(
-        canonical_site.atoms, ligand_neighbourhood.atoms, min_alignable_atoms
-    )
+    return match_atoms(canonical_site.atoms, ligand_neighbourhood.atoms, min_alignable_atoms)
 
 
 def match_neighbourhood_to_sites(
@@ -84,9 +84,7 @@ def match_neighbourhood_to_sites(
     ligand_neighbourhood: LigandNeighbourhood,
 ) -> int | None:
     for canonical_site_id, canonical_site in canonical_sites.items():
-        match: bool = match_neighbourhood_to_site(
-            canonical_site, ligand_neighbourhood
-        )
+        match: bool = match_neighbourhood_to_site(canonical_site, ligand_neighbourhood)
         if match:
             return match
 

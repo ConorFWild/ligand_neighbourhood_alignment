@@ -29,8 +29,7 @@ def test_module_summary():
     summary = metadata("python3-pip-skeleton")["summary"]
     skeleton_check(
         "One line description of your module" in summary,
-        "Please change project.description in ./pyproject.toml "
-        "to be a one line description of your module",
+        "Please change project.description in ./pyproject.toml " "to be a one line description of your module",
     )
 
 
