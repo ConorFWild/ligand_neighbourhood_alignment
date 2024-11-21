@@ -976,7 +976,8 @@ def _update_xtalform_sites(
         canonical_site_id: str,
         dataset_assignments: dict[str, str],
         conformer_sites: dict[str, dt.ConformerSite],
-        neighbourhoods
+        neighbourhoods,
+        debug=False
 ):
     # Iterate over Canonical Sites, collecting Observations that are in the same crystalform
     # Then get their centroid CA positions,
@@ -1008,6 +1009,7 @@ def _update_xtalform_sites(
         for xtalform_name in crystalform_observations
     }
 
+
     # Spatially cluster
     crystalform_observation_cluster_assignments = {
         xtalform_name: _crystalform_incremental_cluster(
@@ -1017,6 +1019,9 @@ def _update_xtalform_sites(
         )
         for xtalform_name in crystalform_observations
     }
+
+    # if debug:
+    #     raise Exception
 
     # Create the xtalforms or assign new observations
     for xtalform_name in crystalform_observation_cluster_assignments:
@@ -1034,7 +1039,7 @@ def _update_xtalform_sites(
                 xtalform_site_id = "/".join(centroid_residue)
                 xtalform_site = dt.XtalFormSite(
                     xtalform_name,
-                    centroid_residue[1],
+                    crystalform_observation_centroids[xtalform_name][centroid_residue][0],
                     canonical_site_id,
                     asigned_observation_ids,
                 )
@@ -1383,7 +1388,9 @@ def _update(
 
         dataset_chains = [_chain.name for _chain in st[0]]
         dataset_ligand_chains = [_x[1] for _x in ligand_neighbourhoods if _x[0] == dtag]
-        for _chain in dataset_ligand_chains:
+        # for _chain in dataset_ligand_chains:
+        # for _chain in dataset_chains:
+        for _chain in xtalform_chains:
             if _chain not in xtalform_chains:
                 raise Exception(
                     f"A xtalform assignment error has occured. Dataset {dtag} has chain {_chain} in its chains {dataset_chains} however its assigned xtalform {dataset_assignments[dtag]} has chain {xtalform_chains}")
@@ -1479,13 +1486,17 @@ def _update(
     for canonical_site_id, canonical_site in canonical_sites.items():
         # If canonical site in a xtalform site, replace with new data, otherwise
         # Check if residues match as usual, otherwise create a new canon site for it
+        debug = False
+        if canonical_site_id == 'LYSRSCPZ-x0426+A+805+1':
+            debug=True
         _update_xtalform_sites(
             xtalform_sites,
             canonical_site,
             canonical_site_id,
             dataset_assignments,
             conformer_sites,
-            ligand_neighbourhoods
+            ligand_neighbourhoods,
+            debug
         )
     logger.info(f"Now have {len(xtalform_sites)} xtalform sites")
     _save_xtalform_sites(fs_model, xtalform_sites)
@@ -1534,7 +1545,9 @@ def _update(
                     conformer_sites,
                     assemblies,
                     xtalforms,
-                    dataset_assignments
+                    dataset_assignments,
+                    xtalform_sites,
+                    canonical_site_id
                 )
     logger.info(f"Now have {len(reference_structure_transforms)} reference structure transforms")
     save_reference_structure_transforms(
@@ -1556,7 +1569,6 @@ def _update(
     # for canonical_site_id, canonical_site in canonical_sites.items():
     #     for conformer_site_id, conformer_site in canonical_site.conformer_sites.items():
     #         for lid in conformer_site.ligand_ids:
-
 
     for dtag, dataset_alignment_info in fs_model.alignments.items():
         for chain, chain_alignment_info in dataset_alignment_info.items():
@@ -1582,6 +1594,20 @@ def _update(
                             moving_ligand_id = (dtag, chain, residue, version)
                             reference_ligand_id = conformer_site.reference_ligand_id
                             print(aligned_structure_path)
+
+                            # Get the site chain
+                            site_reference_ligand_id = conformer_sites[
+                                canonical_site.reference_conformer_site_id].reference_ligand_id
+                            site_reference_ligand_xtalform_id = dataset_assignments[site_reference_ligand_id[0]]
+                            site_reference_ligand_xtalform = xtalforms[site_reference_ligand_xtalform_id]
+                            for xsid, _xtalform_site in xtalform_sites.items():
+                                _xtalform_id = _xtalform_site.xtalform_id
+                                if _xtalform_id == site_reference_ligand_xtalform_id:
+                                    _xtalform_canonical_site_id = _xtalform_site.canonical_site_id
+                                    if _xtalform_canonical_site_id == canonical_site_id:
+                                        xtalform_site = _xtalform_site
+                            site_chain = xtalform_site.crystallographic_chain
+
                             _align_structure(
                                 _structure,
                                 moving_ligand_id,
@@ -1601,14 +1627,16 @@ def _update(
                                 chain_to_assembly_transform=chain_to_assembly_transforms[
                                     (
                                         conformer_site.reference_ligand_id[0],
-                                        conformer_site.reference_ligand_id[1],
+                                        # conformer_site.reference_ligand_id[1],
+                                        site_chain
                                         # conformer_site.reference_ligand_id[3]
                                     )
                                 ],
                                 assembly_transform=assembly_transforms[
                                     xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]].assemblies[
                                         alignment_heirarchy._chain_to_xtalform_assembly(
-                                            conformer_site.reference_ligand_id[1],
+                                            # conformer_site.reference_ligand_id[1],
+                                            site_chain,
                                             xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
                                         )
                                     ].assembly
@@ -1691,6 +1719,19 @@ def _update(
                             aligned_structure = gemmi.read_structure(str(st_path))
                             aligned_res = aligned_structure[0][chain][str(residue)][0]
 
+                            # Get the site chain
+                            site_reference_ligand_id = conformer_sites[
+                                canonical_site.reference_conformer_site_id].reference_ligand_id
+                            site_reference_ligand_xtalform_id = dataset_assignments[site_reference_ligand_id[0]]
+                            site_reference_ligand_xtalform = xtalforms[site_reference_ligand_xtalform_id]
+                            for xsid, _xtalform_site in xtalform_sites.items():
+                                _xtalform_id = _xtalform_site.xtalform_id
+                                if _xtalform_id == site_reference_ligand_xtalform_id:
+                                    _xtalform_canonical_site_id = _xtalform_site.canonical_site_id
+                                    if _xtalform_canonical_site_id == canonical_site_id:
+                                        xtalform_site = _xtalform_site
+                            site_chain = xtalform_site.crystallographic_chain
+
                             if (xmap_path != "None") and (xmap_path is not None):
                                 xmap = read_xmap(xmap_path)
 
@@ -1712,7 +1753,13 @@ def _update(
                                     chain_to_assembly_transform=chain_to_assembly_transforms[
                                         (
                                             conformer_site.reference_ligand_id[0],
-                                            conformer_site.reference_ligand_id[1],
+                                            # conformer_site.reference_ligand_id[1],
+                                            # alignment_heirarchy._chain_to_xtalform_assembly(
+                                            #     # conformer_site.reference_ligand_id[1],
+                                            #     site_chain,
+                                            #     xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
+                                            # )
+                                            site_chain
                                             # conformer_site.reference_ligand_id[3]
                                         )
                                     ],
@@ -1720,7 +1767,8 @@ def _update(
                                         xtalforms[
                                             dataset_assignments[conformer_site.reference_ligand_id[0]]].assemblies[
                                             alignment_heirarchy._chain_to_xtalform_assembly(
-                                                conformer_site.reference_ligand_id[1],
+                                                site_chain,
+                                                # conformer_site.reference_ligand_id[1],
                                                 xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
                                             )
                                         ].assembly
@@ -1749,7 +1797,13 @@ def _update(
                                     chain_to_assembly_transform=chain_to_assembly_transforms[
                                         (
                                             conformer_site.reference_ligand_id[0],
-                                            conformer_site.reference_ligand_id[1],
+                                            # conformer_site.reference_ligand_id[1],
+                                            site_chain
+                                            # alignment_heirarchy._chain_to_xtalform_assembly(
+                                            #     site_chain,
+                                            #     # conformer_site.reference_ligand_id[1],
+                                            #     xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
+                                            # )
                                             # conformer_site.reference_ligand_id[3]
                                         )
                                     ],
@@ -1757,7 +1811,8 @@ def _update(
                                         xtalforms[
                                             dataset_assignments[conformer_site.reference_ligand_id[0]]].assemblies[
                                             alignment_heirarchy._chain_to_xtalform_assembly(
-                                                conformer_site.reference_ligand_id[1],
+                                                # conformer_site.reference_ligand_id[1],
+                                                site_chain,
                                                 xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
                                             )
                                         ].assembly
@@ -1782,7 +1837,8 @@ def _update(
                                     chain_to_assembly_transform=chain_to_assembly_transforms[
                                         (
                                             conformer_site.reference_ligand_id[0],
-                                            conformer_site.reference_ligand_id[1],
+                                            # conformer_site.reference_ligand_id[1],
+                                            site_chain
                                             # conformer_site.reference_ligand_id[3]
                                         )
                                     ],
@@ -1790,7 +1846,8 @@ def _update(
                                         xtalforms[
                                             dataset_assignments[conformer_site.reference_ligand_id[0]]].assemblies[
                                             alignment_heirarchy._chain_to_xtalform_assembly(
-                                                conformer_site.reference_ligand_id[1],
+                                                site_chain,
+                                                # conformer_site.reference_ligand_id[1],
                                                 xtalforms[dataset_assignments[conformer_site.reference_ligand_id[0]]]
                                             )
                                         ].assembly
